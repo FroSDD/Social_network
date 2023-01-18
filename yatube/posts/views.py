@@ -4,7 +4,7 @@ from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 
-from . models import Post, Group, User, Comment, Follow
+from . models import Post, Group, User, Follow
 from . forms import PostForm, CommentForm
 
 
@@ -40,7 +40,9 @@ def profile(request, username):
     post_list = author.posts.all()
     page_obj = paginate(request, post_list)
     posts_count = post_list.count()
-    following = author.following.exists()
+    following = request.user.is_authenticated and Follow.objects.filter(
+        user_id=request.user.id,
+        author_id=author.id).exists()
     context = {
         'author': author,
         'page_obj': page_obj,
@@ -54,7 +56,7 @@ def post_detail(request, post_id):
     post = get_object_or_404(Post, id=post_id)
     posts_count = post.author.posts.all().count()
     form = CommentForm(request.POST or None)
-    comments = Comment.objects.filter(post=post)
+    comments = post.comments.all()
     context = {
         'post': post,
         'posts_count': posts_count,
@@ -66,7 +68,7 @@ def post_detail(request, post_id):
 
 @login_required
 def post_create(request):
-    form = PostForm(request.POST or None)
+    form = PostForm(request.POST or None, files=request.FILES or None)
 
     if form.is_valid():
         new_post = form.save(commit=False)
@@ -80,15 +82,12 @@ def post_create(request):
 @login_required
 def post_edit(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
+    form = PostForm(request.POST or None, files=request.FILES or None,
+                    instance=post)
     if post.author != request.user:
         return redirect(
             'posts:post_detail', post_id
         )
-    form = PostForm(
-        request.POST or None,
-        files=request.FILES or None,
-        instance=post,
-    )
     if form.is_valid():
         form.save()
         return redirect(
@@ -113,10 +112,7 @@ def add_comment(request, post_id):
 
 @login_required
 def follow_index(request):
-    follower = Follow.objects.filter(user=request.user).values_list(
-        'author_id', flat=True
-    )
-    post_list = Post.objects.filter(author_id__in=follower)
+    post_list = Post.objects.filter(author__following__user=request.user)
     page_obj = paginate(request, post_list)
     context = {
         'page_obj': page_obj,

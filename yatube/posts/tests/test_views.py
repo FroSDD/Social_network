@@ -7,6 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.conf import settings
 from django import forms
+from django.core.cache import cache
 
 from ..models import Post, Group, Comment, Follow
 
@@ -129,13 +130,11 @@ class PostPagesTests(TestCase):
 
     def test_check_group_in_pages(self):
         '''Проверяем создание поста на страницах с выбранной группой.'''
+        post = Post.objects.get(group=self.post.group)
         form_fields = {
-            self.reversed_urls['index']: Post.objects.get(
-                group=self.post.group),
-            self.reversed_urls['group']: Post.objects.get(
-                group=self.post.group),
-            self.reversed_urls['profile']: Post.objects.get(
-                group=self.post.group),
+            self.reversed_urls['index']: post,
+            self.reversed_urls['group']: post,
+            self.reversed_urls['profile']: post,
         }
         for value, expected in form_fields.items():
             with self.subTest(value=value):
@@ -172,12 +171,21 @@ class PostPagesTests(TestCase):
 
     def test_cache_work(self):
         '''Проверка работы кеша.'''
-        response_1 = self.guest_client.get(self.reversed_urls['index'])
-        page_1 = response_1.content
-        Post.objects.get(id=1).delete()
-        response_2 = self.guest_client.get(self.reversed_urls['index'])
-        page_2 = response_2.content
-        self.assertEqual(page_1, page_2)
+        new_post = Post.objects.create(
+            author=self.user,
+            text='Пост для кеша',
+            group=self.group,
+        )
+        page_1 = self.guest_client.get(self.reversed_urls['index'])
+        page_content_1 = page_1.content
+        new_post.delete
+        page_2 = self.guest_client.get(self.reversed_urls['index'])
+        page_content_2 = page_2.content
+        self.assertEqual(page_content_1, page_content_2)
+        cache.clear()
+        page_3 = self.guest_client.get(self.reversed_urls['index'])
+        page_content_3 = page_3.content
+        self.assertNotEqual(page_content_2, page_content_3)
 
 
 class PaginatorViewsTest(TestCase):
@@ -332,32 +340,43 @@ class FollowTests(TestCase):
         cls.author_client.force_login(cls.author)
         cls.guest_client.force_login(cls.guest)
 
-        cls.post = Post.objects.create(
-            author=cls.author,
-            text='Тестовая запись'
-        )
-
     def test_follow(self):
         '''Проверка подписки на автора.'''
+        follow_count = Follow.objects.count()
         self.authorized_client.get(
             reverse('posts:profile_follow', kwargs={'username':
                     self.author.username}))
-        self.assertEqual(Follow.objects.all().count(), 1)
+        self.assertEqual(Follow.objects.count(), follow_count + 1)
+        follow = Follow.objects.last()
+        self.assertEqual(follow.author, self.author)
+        self.assertEqual(follow.user, self.user)
 
     def test_unfollow(self):
         '''Проверка отписки от автора.'''
-        Follow.objects.create(user=self.user,
-                              author=self.author)
+        Follow.objects.create(user=self.user, author=self.author)
+        follow_count = Follow.objects.count()
         self.authorized_client.get(
             reverse('posts:profile_unfollow', kwargs={'username':
                     self.author.username}))
-        self.assertEqual(Follow.objects.all().count(), 0)
+        self.assertEqual(Follow.objects.count(), follow_count - 1)
+        self.assertFalse(Follow.objects.filter(
+            user=self.user, author=self.author).exists())
 
-    def test_new_post_in_the_feed(self):
-        '''Проверка ленты пользователя.'''
-        self.authorized_client.get(reverse('posts:profile_follow', kwargs={
-            'username': self.author.username}))
+    def test_new_post_auth_in_the_feed(self):
+        '''Проверка ленты подписанного пользователя.'''
+        Follow.objects.create(user=self.user, author=self.author)
+        post_text = 'Text'
+        Post.objects.create(author=self.author, text=post_text)
         response = self.authorized_client.get(reverse('posts:follow_index'))
-        self.assertContains(response, self.post.text)
+        self.assertNotEqual(len(response.context.get('page_obj')), 0)
+        follow = Follow.objects.get(user=self.user, author=self.author)
+        self.assertEqual(follow.author, self.author)
+        self.assertEqual(follow.user, self.user)
+        post = response.context['page_obj'][0]
+        self.assertEqual(post.text, post_text)
+
+    def test_new_post_not_auth_in_the_feed(self):
+        '''Проверка ленты не подписанного пользователя.'''
+        Post.objects.create(author=self.author, text='Text')
         response = self.guest_client.get(reverse('posts:follow_index'))
-        self.assertNotContains(response, self.post.text)
+        self.assertEqual(len(response.context.get('page_obj')), 0)

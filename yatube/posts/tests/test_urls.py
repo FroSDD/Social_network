@@ -35,6 +35,7 @@ class PostsURLTests(TestCase):
             f"/posts/{cls.post.id}/": "posts/post_detail.html",
             f"/posts/{cls.post.id}/edit/": "posts/create_post.html",
             "/create/": "posts/create_post.html",
+            "/follow/": "posts/follow.html",
         }
         cls.urls = {
             "index": "/",
@@ -43,6 +44,7 @@ class PostsURLTests(TestCase):
             "post": f"/posts/{cls.post.id}/",
             "create": "/create/",
             "page": "/unexisting_page/",
+            'follow': "/follow/",
         }
 
     def setUp(self):
@@ -81,6 +83,11 @@ class PostsURLTests(TestCase):
         """Страница /unexisting_page/ должна выдать ошибку."""
         response = self.guest_client.get(self.urls["page"])
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
+    def test_authorizing_client_follow(self):
+        """Страница /follow/ доступна авторизованному пользователю."""
+        response = self.authorized_client.get(self.urls["follow"])
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_urls_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
