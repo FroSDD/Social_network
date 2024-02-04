@@ -46,6 +46,7 @@ python3 manage.py runserver
 8. Зарегистирировать суперпользователя Django:
 ```
 python3 manage.py createsuperuser
+```
 
 ### Использованные технологии:
 - Python
