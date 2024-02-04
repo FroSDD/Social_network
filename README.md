@@ -1,3 +1,63 @@
-# hw05_final
+## Social_network
+Social_network - это социальная сеть с авторизацией, персональными лентами, комментариями и подписками на авторов статей. Благодаря этому проекту можно будет делиться своими мыслями и идеями.
 
-[![CI](https://github.com/yandex-praktikum/hw05_final/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/yandex-praktikum/hw05_final/actions/workflows/python-app.yml)
+### Возможности сервиса
+- Регистрируется и восстанавливается доступ по электронной почте;
+- Добавляются изображения к посту;
+- Создаются и редактируются собственные записи;
+- Просмотриваются страницы других авторов;
+- Комментируются записи других авторов;
+- Подписки и отписки от авторов;
+- Записи назначаются в отдельные группы;
+- Личная страница для публикации записей;
+- Отдельная лента с постами авторов на которых подписан пользователь;
+- Через панель администратора модерируются записи, происходит управление пользователями и создаются группы.
+
+## Установка
+1. Клонировать репозиторий:
+2. Перейти в папку с проектом:
+3. Установить виртуальное окружение для проекта:
+```
+python -m venv venv
+``` 
+4. Активировать виртуальное окружение для проекта:
+```
+# для OS Lunix и MacOS
+source venv/bin/activate
+
+# для OS Windows
+source venv/Scripts/activate
+```
+5. Установить зависимости:
+```
+python3 -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+6. В папке с файлом manage.py выполнить команды:
+```
+cd yatube
+python3 manage.py makemigrations
+python3 manage.py migrate
+```
+7. Запустить проект локально:
+```
+python3 manage.py runserver
+```
+8. Зарегистирировать суперпользователя Django:
+```
+python3 manage.py createsuperuser
+
+### Использованные технологии:
+- Python
+- Django
+- Pillow
+- Requests
+- Pytest
+
+### Развернутый проект: 
+http://127.0.0.1:8000
+
+### Автор: 
+[Anton Novikov](https://github.com/FroSDD/)
+
+E-mail: novikov.an_v@mail.ru
